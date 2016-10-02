@@ -1,7 +1,7 @@
 {
 "NAME":"Undockinator",
 "URL":"https://raw.githubusercontent.com/henrybauer/Undockinator/GameData/Undockinator.version",
-"DOWNLOAD":"https://github.com/henrybauer/Undockinator/releases",
+"DOWNLOAD":"http://forum.kerbalspaceprogram.com/index.php?/topic/149144-12pre-the-undockinator-v01-undock-your-ships/",
 "VERSION": {
    "MAJOR":0,"MINOR":1,"PATCH":0,"BUILD":0
 },
