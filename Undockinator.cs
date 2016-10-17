@@ -390,15 +390,28 @@ namespace Undockinator
 			GameEvents.onVesselChange.Add(scanVessel);
 			// onVesselChange - switching between vessels with [ or ] keys
 
-			GameEvents.onVesselStandardModification.Add(scanVessel);
-			// onVesselStandardModification collects various vessel events and fires them off with a single one.
-			// Specifically - onPartAttach,onPartRemove,onPartCouple,onPartDie,onPartUndock,onVesselWasModified,onVesselPartCountChanged
+			GameEvents.onPartAttach.Add(onTwoPartChange);
+			GameEvents.onPartDestroyed.Add(onPartChange);
+//			GameEvents.onPartCouple.Add(onTwoPartChange);
+			GameEvents.onPartDie.Add(onPartChange);
+			GameEvents.onPartUndock.Add(onPartChange);
+			GameEvents.onVesselWasModified.Add(scanVessel);
 
 			versionString = Assembly.GetCallingAssembly().GetName().Version.ToString();
 
 			nonbreakingLabelStyle = new GUIStyle();
 			nonbreakingLabelStyle.wordWrap = false;
 			nonbreakingLabelStyle.normal.textColor = Color.white;
+		}
+
+		public void onPartChange(Part p)
+		{
+			scanVessel();
+		}
+
+		public void onTwoPartChange(GameEvents.HostTargetAction<Part, Part> data)
+		{
+			scanVessel();
 		}
 
 		private static void UDprint(string taco)
