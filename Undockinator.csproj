@@ -8,7 +8,7 @@
     <RootNamespace>Undockinator</RootNamespace>
     <AssemblyName>Undockinator</AssemblyName>
     <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
-    <ReleaseVersion>0.1.1</ReleaseVersion>
+    <ReleaseVersion>0.2</ReleaseVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -31,12 +31,15 @@
     <Reference Include="System" />
     <Reference Include="Assembly-CSharp">
       <HintPath>..\..\Library\Application Support\Steam\steamapps\common\Kerbal Space Program\KSP.app\Contents\Resources\Data\Managed\Assembly-CSharp.dll</HintPath>
+      <Private>False</Private>
     </Reference>
     <Reference Include="UnityEngine">
       <HintPath>..\..\Library\Application Support\Steam\steamapps\common\Kerbal Space Program\KSP.app\Contents\Resources\Data\Managed\UnityEngine.dll</HintPath>
+      <Private>False</Private>
     </Reference>
     <Reference Include="UnityEngine.UI">
       <HintPath>..\..\Library\Application Support\Steam\steamapps\common\Kerbal Space Program\KSP.app\Contents\Resources\Data\Managed\UnityEngine.UI.dll</HintPath>
+      <Private>False</Private>
     </Reference>
     <Reference Include="KramaxReloadExtensions">
       <HintPath>..\..\Library\Application Support\Steam\steamapps\common\Kerbal Space Program\GameData\KramaxPluginReload\Plugins\KramaxReloadExtensions.dll</HintPath>
@@ -45,6 +48,7 @@
   <ItemGroup>
     <Compile Include="Undockinator.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="ToolbarWrapper.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="GameData\Undockinator.version" />
