@@ -14,15 +14,16 @@ namespace Undockinator
 #if DEBUG
 	public class Undockinator : ReloadableMonoBehaviour
 #else
-	public class Undockinator: MonoBehaviour
+	public class Undockinator : MonoBehaviour
 #endif
 	{
 		// toolbar
-		bool useBlizzy = false;
-		//private IButton aspButton;
-		private static Texture2D appTexture = null;
-		bool setupApp = false;
-		private static ApplicationLauncherButton appButton = null;
+		private bool useBlizzy = false;
+		private bool blizzyAvailable = false;
+		private IButton blizzyButton;
+		private Texture2D appTexture = null;
+		private bool setupApp = false;
+		private ApplicationLauncherButton appButton = null;
 
 		// GUI
 #if DEBUG
@@ -125,7 +126,9 @@ namespace Undockinator
 
 		public void scanVessel(Vessel gameEventVessel = null)
 		{
+#if DEBUG
 			UDprint("Scanning vessel for undockable parts");
+#endif
 			currentVessel = FlightGlobals.ActiveVessel;
 			partList.Clear();
 			maxShipNameWidth = -1f;
@@ -179,25 +182,26 @@ namespace Undockinator
 
 		public void Awake()
 		{
-			/*
 			if (ToolbarManager.ToolbarAvailable)
 			{
 				UDprint("Blizzy's toolbar available");
-				aspButton = ToolbarManager.Instance.add("Undockinator", "aspButton");
-				aspButton.TexturePath = "Undockinator/undockinator";
-				aspButton.ToolTip = "Undockinator";
-				aspButton.Visibility = new GameScenesVisibility(GameScenes.FLIGHT);
-				aspButton.OnClick += (e) =>
+				blizzyButton = ToolbarManager.Instance.add("Undockinator", "UndockinatorButton");
+				blizzyButton.TexturePath = "Undockinator/undockinator";
+				blizzyButton.ToolTip = "Undockinator";
+				blizzyButton.Visibility = new GameScenesVisibility(GameScenes.FLIGHT);
+				blizzyButton.OnClick += (e) =>
 				{
 					buttonPressed();
 				};
-				aspButton.Visible = useBlizzy;
+				blizzyButton.Visible = useBlizzy;
+				blizzyAvailable = true;
 			}
-			else */
+			else
 			{
 				UDprint("Blizzy's toolbar not available, using stock toolbar");
-				//aspButton = null;
+				blizzyButton = null;
 				useBlizzy = false;
+				blizzyAvailable = false;
 			}
 
 			//setup app launcher after toolbar in case useBlizzy=true but user removed toolbar
@@ -222,6 +226,13 @@ namespace Undockinator
 
 		public void OnDestroy()
 		{
+			if (appButton != null)
+			{
+				ApplicationLauncher.Instance.RemoveModApplication(appButton);
+				appButton = null;
+				setupApp = false;
+			}
+
 #if DEBUG
 			// don't save configs because KramaxReload screws up PluginConfiguration
 #else
@@ -266,6 +277,20 @@ namespace Undockinator
 			//GUILayout.Label(maxPartNameWidth.ToString() + "/"+maxShipNameWidth.ToString());
 			//GUILayout.EndHorizontal();
 
+			if (blizzyAvailable)
+			{
+				GUILayout.BeginHorizontal();
+				useBlizzy = GUILayout.Toggle(useBlizzy, "Use Blizzy's toolbar");
+				GUILayout.EndHorizontal();
+				if (useBlizzy)
+				{
+					appButton.VisibleInScenes = ApplicationLauncher.AppScenes.NEVER;
+				}
+				else {
+					appButton.VisibleInScenes = ApplicationLauncher.AppScenes.FLIGHT;
+				}
+				blizzyButton.Visible = useBlizzy;
+			}
 			if (partList.Count == 0)
 			{
 				GUILayout.BeginHorizontal();
@@ -292,7 +317,8 @@ namespace Undockinator
 
 						}
 					}
-					else*/ {
+					else*/
+					{
 						GUILayout.Label(partList[i].partName, GUILayout.Width(maxPartNameWidth));
 					}
 					if (GUILayout.Button(partList[i].shipName, GUILayout.Width(maxShipNameWidth)))
@@ -354,19 +380,19 @@ namespace Undockinator
 			UDprint("setupAppButton");
 			if (setupApp)
 			{
-				UDprint("app Button already set up");
+				UDprint("already set up");
+				ApplicationLauncher.Instance.RemoveModApplication(appButton);
+				appButton = null;
+				setupApp = false;
 			}
-			else if (ApplicationLauncher.Ready)
-			{
-				setupApp = true;
-				if (appButton == null)
+			else {
+				if (ApplicationLauncher.Ready)
 				{
-
-					UDprint("Setting up AppLauncher");
+					setupApp = true;
 					ApplicationLauncher appinstance = ApplicationLauncher.Instance;
 					UDprint("Setting up AppLauncher Button");
 					appTexture = loadTexture("Undockinator/undockinator-app");
-					appButton = appinstance.AddModApplication(buttonPressed, buttonPressed, doNothing, doNothing, doNothing, doNothing, ApplicationLauncher.AppScenes.FLIGHT, appTexture);
+					appButton = appinstance.AddModApplication(buttonPressed, buttonPressed, doNothing, doNothing, doNothing, doNothing, ApplicationLauncher.AppScenes.NEVER, appTexture);
 					if (useBlizzy)
 					{
 						appButton.VisibleInScenes = ApplicationLauncher.AppScenes.NEVER;
@@ -376,50 +402,50 @@ namespace Undockinator
 					}
 				}
 				else {
-					appButton.onTrue = buttonPressed;
-					appButton.onFalse = buttonPressed;
+					UDprint("ApplicationLauncher.Ready is false");
+				}
+				if (blizzyButton != null)
+				{
+					blizzyButton.Visible = useBlizzy;
 				}
 			}
-			else {
-				UDprint("ApplicationLauncher.Ready is false");
-			}
 		}
 
-		public void Start()
-		{
-			GameEvents.onVesselChange.Add(scanVessel);
-			// onVesselChange - switching between vessels with [ or ] keys
+	public void Start()
+	{
+		GameEvents.onVesselChange.Add(scanVessel);
+		// onVesselChange - switching between vessels with [ or ] keys
 
-			GameEvents.onVesselStandardModification.Add(scanVessel);
-			// onVesselStandardModification collects various vessel events and fires them off with a single one.
-			// Specifically - onPartAttach,onPartRemove,onPartCouple,onPartDie,onPartUndock,onVesselWasModified,onVesselPartCountChanged
+		GameEvents.onVesselStandardModification.Add(scanVessel);
+		// onVesselStandardModification collects various vessel events and fires them off with a single one.
+		// Specifically - onPartAttach,onPartRemove,onPartCouple,onPartDie,onPartUndock,onVesselWasModified,onVesselPartCountChanged
 
-			versionString = Assembly.GetCallingAssembly().GetName().Version.ToString();
+		versionString = Assembly.GetCallingAssembly().GetName().Version.ToString();
 
-			nonbreakingLabelStyle = new GUIStyle();
-			nonbreakingLabelStyle.wordWrap = false;
-			nonbreakingLabelStyle.normal.textColor = Color.white;
-		}
-
-		private static void UDprint(string taco)
-		{
-			print("[Undockinator] " + taco);
-		}
-
-		private static Texture2D loadTexture(string path)
-		{
-			UDprint("loading texture: " + path);
-			return GameDatabase.Instance.GetTexture(path, false);
-		}
-
-		private static Rect clampToScreen(Rect rect)
-		{
-			rect.width = Mathf.Clamp(rect.width, 0, Screen.width);
-			rect.height = Mathf.Clamp(rect.height, 0, Screen.height);
-			rect.x = Mathf.Clamp(rect.x, 0, Screen.width - rect.width);
-			rect.y = Mathf.Clamp(rect.y, 0, Screen.height - rect.height);
-			return rect;
-		}
+		nonbreakingLabelStyle = new GUIStyle();
+		nonbreakingLabelStyle.wordWrap = false;
+		nonbreakingLabelStyle.normal.textColor = Color.white;
 	}
+
+	private static void UDprint(string taco)
+	{
+		print("[Undockinator] " + taco);
+	}
+
+	private static Texture2D loadTexture(string path)
+	{
+		UDprint("loading texture: " + path);
+		return GameDatabase.Instance.GetTexture(path, false);
+	}
+
+	private static Rect clampToScreen(Rect rect)
+	{
+		rect.width = Mathf.Clamp(rect.width, 0, Screen.width);
+		rect.height = Mathf.Clamp(rect.height, 0, Screen.height);
+		rect.x = Mathf.Clamp(rect.x, 0, Screen.width - rect.width);
+		rect.y = Mathf.Clamp(rect.y, 0, Screen.height - rect.height);
+		return rect;
+	}
+}
 
 }
