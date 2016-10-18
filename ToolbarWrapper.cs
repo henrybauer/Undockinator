@@ -25,6 +25,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using UnityEngine;
 
@@ -724,13 +725,9 @@ namespace Undockinator {
 		}
 
 		internal static Type getType(string name) {
-			Type type = null;
-			AssemblyLoader.loadedAssemblies.TypeOperation(t => {
-				if (t.FullName == name) {
-					type = t;
-				}
-			});
-			return type;
+			return AssemblyLoader.loadedAssemblies
+				.SelectMany(a => a.assembly.GetExportedTypes())
+				.SingleOrDefault(t => t.FullName == name);
 		}
 
 		internal static PropertyInfo getProperty(Type type, string name) {
