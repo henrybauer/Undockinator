@@ -38,7 +38,8 @@ namespace Undockinator
 		static float maxPartNameWidth = -1f;
 		static float maxShipNameWidth = -1f;
 		Part highlightPart = null;
-		public Vector2 scrollPosition;
+        Part highlightPartnerPart = null;
+        public Vector2 scrollPosition;
 		private bool showRename = false;
 		private UndockablePort renamePort;
 		private string renameName = null;
@@ -154,7 +155,19 @@ namespace Undockinator
 						pm = (ModuleDockingNode)currentVessel.parts[i].Modules[j];
 						if (pm.state.StartsWith("Docked") || pm.state.StartsWith("PreAttached"))
 						{
-							portList.Add(new UndockablePort(currentVessel.parts[i].Modules[j]));
+                            Boolean uniquePort = true;
+                            for (int k = portList.Count - 1; k >= 0; --k)
+                            {
+                                if (portList[k].partnerPM == pm)
+                                {
+                                    uniquePort = false;
+                                }
+                            }
+
+                            if (uniquePort)
+                            {
+                                portList.Add(new UndockablePort(currentVessel.parts[i].Modules[j]));
+                            }
 						}
 					}
 				}
@@ -267,7 +280,12 @@ namespace Undockinator
 					highlightPart.SetHighlightDefault();
 					highlightPart = null;
 				}
-			}
+                if (highlightPartnerPart != null && highlightPartnerPart.HighlightActive)
+                {
+                    highlightPartnerPart.SetHighlightDefault();
+                    highlightPartnerPart = null;
+                }
+            }
 		}
 
 		public void OnWindow(int windowID)
@@ -366,16 +384,29 @@ namespace Undockinator
 						{
 							highlightPart.SetHighlightDefault();
 						}
-						highlightPart = portList[i].part;
-						if (!highlightPart.HighlightActive)
+                        if (highlightPartnerPart != null && highlightPartnerPart.HighlightActive)
+                        {
+                            highlightPartnerPart.SetHighlightDefault();
+                        }
+                        highlightPart = portList[i].part;
+                        highlightPartnerPart = portList[i].partner;
+
+                        if (!highlightPart.HighlightActive)
 						{
 							highlightPart.SetHighlight(true, false);
 							highlightPart.highlightType = Part.HighlightType.AlwaysOn;
 							highlightPart.SetHighlightColor(Color.yellow);
 							highlightPart.highlighter.OccluderOn();
 						}
+                        if (!highlightPartnerPart.HighlightActive)
+                        {
+                            highlightPartnerPart.SetHighlight(true, false);
+                            highlightPartnerPart.highlightType = Part.HighlightType.AlwaysOn;
+                            highlightPartnerPart.SetHighlightColor(Color.yellow);
+                            highlightPartnerPart.highlighter.OccluderOn();
+                        }
 
-					}
+                    }
 					//if ((i % 2 == 0) && (i > 0))
 					//{
 					//	GUILayout.Space(10);
