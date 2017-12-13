@@ -48,75 +48,113 @@ namespace Undockinator
 		private List<UndockablePort> portList = new List<UndockablePort>();
 		Vessel currentVessel;
 
-		struct UndockablePort
+		class UndockablePort
 		{
-			public ModuleDockingNode pm;
-			public ModuleDockingNode partnerPM;
-			public Part part;
+			private ModuleDockingNode pm;
+            private ModuleDockingNode partnerPM;
+            private ModuleGrappleNode gm;
+            public Part part;
 			public Part partner;
 			public string portName;
 			public string shipName;
-			public uint partnerID;
-			public uint myID;
 			public bool dpai;
-			public PartModule dpaiModule;
+			private PartModule dpaiModule;
 
-			public UndockablePort(PartModule newPartModule)
+            public void rename(string newName)
+            {
+                dpaiModule.GetType().GetField("portName").SetValue(dpaiModule, newName);
+                portName = newName;
+
+            }
+
+            public void undock()
+            {
+                if (pm==null){
+                    gm.Decouple();
+                }
+                else {
+                    if (shipName == "PreAttached")
+                    {
+                        pm.Decouple();
+                    }
+                    else
+                    {
+                        pm.Undock();
+                    }
+                }
+            }
+
+            public UndockablePort(PartModule newPartModule)
 			{
-				pm = (ModuleDockingNode)newPartModule;
-				part = newPartModule.part;
+                part = newPartModule.part;
+                portName = part.partInfo.title;
 
-				partner = null;
-				partnerPM = null;
+                partner = null;
+                partnerPM = null;
 
-				if (pm.state.StartsWith("PreAttached"))
-				{
-					shipName = "PreAttached";
-				}
-				else {
-					DockedVesselInfo dv = pm.vesselInfo;
-					if (dv != null)
-					{
-						shipName = dv.name + " (" + dv.vesselType.ToString() + ")";
+                if (newPartModule.moduleName == "ModuleGrappleNode")
+                {
+                    pm = null;
+                    gm = (ModuleGrappleNode)newPartModule;
 
-						if (pm.otherNode != null)
-						{
-							partnerPM = pm.otherNode;
-							partner = partnerPM.part;
-							shipName = shipName + " - " + partnerPM.vesselInfo.name + " (" + partnerPM.vesselInfo.vesselType.ToString() + ")";
-						}
-					}
-					else
-					{
-						shipName = "???";
-					}
-				}
+                    // gm.vesselInfo just points to our own ship, so don't use that
+                    shipName = portName;
+                }
+                else
+                {
+                    pm = (ModuleDockingNode)newPartModule;
+                    gm = null;
+                    if (pm.state.StartsWith("PreAttached"))
+                    {
+                        shipName = "PreAttached";
+                    }
+                    else
+                    {
+                        DockedVesselInfo dv = pm.vesselInfo;
+                        if (dv != null)
+                        {
+                            shipName = dv.name + " (" + dv.vesselType.ToString() + ")";
 
-				myID = part.flightID;
-				partnerID = pm.dockedPartUId;
+                            if (pm.otherNode != null)
+                            {
+                                partnerPM = pm.otherNode;
+                                partner = partnerPM.part;
+                                shipName = shipName + " - " + partnerPM.vesselInfo.name + " (" + partnerPM.vesselInfo.vesselType.ToString() + ")";
+                            }
+                        }
+                        else
+                        {
+                            shipName = "???";
+                        }
+                    }
+                    
+                }
 
-				portName = pm.part.partInfo.title;
-
+				
 				// get DPAI module, extract name (if any)
 				dpai = false;
 				dpaiModule = null;
-				string dpaiName = null;
-				for (int j = part.Modules.Count - 1; j >= 0; --j)
-				{
-					if (part.Modules[j].moduleName == "ModuleDockingNodeNamed")
-					{
-						if (pm.controlTransformName == (string)part.Modules[j].GetType().GetField("controlTransformName").GetValue(part.Modules[j]))
-						{
-							dpaiModule = part.Modules[j];
-							dpaiName = (string)dpaiModule.GetType().GetField("portName").GetValue(dpaiModule);
-						}
-					}
-				}
-				if (dpaiName != null && dpaiName != "")
-				{
-					portName = dpaiName;
-					dpai = true;
-				}
+                if (pm != null) // DPAI only supports ModuleDockingNode, not ModuleGrappleNode
+                {
+                    string dpaiName = null;
+                    for (int j = part.Modules.Count - 1; j >= 0; --j)
+                    {
+                        if (part.Modules[j].moduleName == "ModuleDockingNodeNamed")
+                        {
+                            if (pm.controlTransformName == (string)part.Modules[j].GetType().GetField("controlTransformName").GetValue(part.Modules[j]))
+                            {
+                                dpaiModule = part.Modules[j];
+                                dpaiName = (string)dpaiModule.GetType().GetField("portName").GetValue(dpaiModule);
+                            }
+
+                        }
+                    }
+                    if (dpaiName != null && dpaiName != "")
+                    {
+                        portName = dpaiName;
+                        dpai = true;
+                    }
+                }
 
 				// Shrink the part names if they're using the default ones
 				switch (portName)
@@ -144,6 +182,7 @@ namespace Undockinator
 			maxPartNameWidth = -1f;
 			scrollPosition = new Vector2(0, 0);
 			ModuleDockingNode pm;
+            ModuleGrappleNode gm;
 
 			// Gather docking ports
 			for (int i = currentVessel.Parts.Count - 1; i >= 0; --i)
@@ -158,7 +197,7 @@ namespace Undockinator
                             Boolean uniquePort = true;
                             for (int k = portList.Count - 1; k >= 0; --k)
                             {
-                                if (portList[k].partnerPM == pm)
+                                if (portList[k].partner == currentVessel.parts[i])
                                 {
                                     uniquePort = false;
                                 }
@@ -170,6 +209,15 @@ namespace Undockinator
                             }
 						}
 					}
+                    if (currentVessel.parts[i].Modules[j].moduleName == "ModuleGrappleNode")
+                    {
+                        gm = (ModuleGrappleNode)currentVessel.parts[i].Modules[j];
+                        print ("Grapple: " + gm.state.ToString());
+                        if (gm.state.StartsWith("Grappled"))
+                        {
+                            portList.Add(new UndockablePort(currentVessel.parts[i].Modules[j]));
+                        }
+                    }
 				}
 			}
 		}
@@ -222,11 +270,13 @@ namespace Undockinator
 
 			//setup app launcher after toolbar in case useBlizzy=true but user removed toolbar
 			GameEvents.onGUIApplicationLauncherReady.Add(setupAppButton);
+            GameEvents.onGUIApplicationLauncherUnreadifying.Add(cleanUpAppButton);
+            
 
 #if DEBUG
 			// don't load configs because KramaxReload screws up PluginConfiguration
 #else
-			UDprint("Loading config values");
+            UDprint("Loading config values");
 			PluginConfiguration config = PluginConfiguration.CreateForType<Undockinator>();
 			config.load();
 			useBlizzy = config.GetValue<bool>("useBlizzy");
@@ -240,15 +290,25 @@ namespace Undockinator
 #endif
 		}
 
-		public void OnDestroy()
-		{
-			if (appButton != null)
-			{
-				ApplicationLauncher.Instance.RemoveModApplication(appButton);
-				appButton = null;
-				setupApp = false;
-			}
+        public void cleanUpAppButton(GameScenes data)
+        {
+            cleanUpAppButton();
+        }
 
+        public void cleanUpAppButton()
+        {
+            if (appButton != null)
+            {
+                GameEvents.onGUIApplicationLauncherReady.Remove(setupAppButton);
+                ApplicationLauncher.Instance.RemoveModApplication(appButton);
+                appButton = null;
+                setupApp = false;
+            }
+        }
+
+        public void OnDestroy()
+		{
+            cleanUpAppButton();
 #if DEBUG
 			// don't save configs because KramaxReload screws up PluginConfiguration
 #else
@@ -326,9 +386,8 @@ namespace Undockinator
 				if (GUILayout.Button("OK"))
 				{
 					showRename = false;
-					renamePort.dpaiModule.GetType().GetField("portName").SetValue(renamePort.dpaiModule, renameName);
-					renamePort.portName = renameName;
-					scanVessel();
+                    renamePort.rename(renameName);
+                    scanVessel();
 				}
 				GUILayout.FlexibleSpace();
 				if (GUILayout.Button("Cancel"))
@@ -342,7 +401,7 @@ namespace Undockinator
 			{
 				scrollPosition = GUILayout.BeginScrollView(scrollPosition,
 														   GUILayout.Width(maxPartNameWidth + maxShipNameWidth + 30),
-														   GUILayout.Height(Math.Min(400, portList.Count * 40)));
+														   GUILayout.Height(Math.Min(400, (portList.Count+1) * 40)));
 				GUILayout.BeginVertical();
 				GUILayout.BeginHorizontal();
 				GUILayout.Label("Part name", GUILayout.Width(maxPartNameWidth));
@@ -367,13 +426,7 @@ namespace Undockinator
 					}
 					if (GUILayout.Button(portList[i].shipName, GUILayout.Width(maxShipNameWidth)))
 					{
-						if (portList[i].shipName == "PreAttached")
-						{
-							portList[i].pm.Decouple();
-						}
-						else {
-							portList[i].pm.Undock();
-						}
+                        portList[i].undock();
 						visible = false;
 					}
 					GUILayout.EndHorizontal();
@@ -398,12 +451,15 @@ namespace Undockinator
 							highlightPart.SetHighlightColor(Color.yellow);
 							highlightPart.highlighter.OccluderOn();
 						}
-                        if (!highlightPartnerPart.HighlightActive)
+                        if (highlightPartnerPart != null)
                         {
-                            highlightPartnerPart.SetHighlight(true, false);
-                            highlightPartnerPart.highlightType = Part.HighlightType.AlwaysOn;
-                            highlightPartnerPart.SetHighlightColor(Color.yellow);
-                            highlightPartnerPart.highlighter.OccluderOn();
+                            if (!highlightPartnerPart.HighlightActive)
+                            {
+                                highlightPartnerPart.SetHighlight(true, false);
+                                highlightPartnerPart.highlightType = Part.HighlightType.AlwaysOn;
+                                highlightPartnerPart.SetHighlightColor(Color.yellow);
+                                highlightPartnerPart.highlighter.OccluderOn();
+                            }
                         }
 
                     }
@@ -432,41 +488,41 @@ namespace Undockinator
 		{
 		}
 
-		public void setupAppButton()
-		{
-			UDprint("setupAppButton");
-			if (setupApp)
-			{
-				UDprint("already set up");
-				ApplicationLauncher.Instance.RemoveModApplication(appButton);
-				appButton = null;
-				setupApp = false;
-			}
-			else {
-				if (ApplicationLauncher.Ready)
-				{
-					setupApp = true;
-					ApplicationLauncher appinstance = ApplicationLauncher.Instance;
-					UDprint("Setting up AppLauncher Button");
-					appTexture = loadTexture("Undockinator/undockinator-app");
-					appButton = appinstance.AddModApplication(buttonPressed, buttonPressed, doNothing, doNothing, doNothing, doNothing, ApplicationLauncher.AppScenes.NEVER, appTexture);
-					if (useBlizzy)
-					{
-						appButton.VisibleInScenes = ApplicationLauncher.AppScenes.NEVER;
-					}
-					else {
-						appButton.VisibleInScenes = ApplicationLauncher.AppScenes.FLIGHT;
-					}
-				}
-				else {
-					UDprint("ApplicationLauncher.Ready is false");
-				}
-				if (blizzyButton != null)
-				{
-					blizzyButton.Visible = useBlizzy;
-				}
-			}
-		}
+        public void setupAppButton()
+        {
+            UDprint("setupAppButton");
+            if (ApplicationLauncher.Ready)
+                if (setupApp)
+                {
+                    UDprint("already set up");
+                    cleanUpAppButton();
+                    setupApp = false;
+                }
+                else
+                {
+                    setupApp = true;
+                    ApplicationLauncher appinstance = ApplicationLauncher.Instance;
+                    UDprint("Setting up AppLauncher Button");
+                    appTexture = loadTexture("Undockinator/undockinator-app");
+                    appButton = appinstance.AddModApplication(buttonPressed, buttonPressed, doNothing, doNothing, doNothing, doNothing, ApplicationLauncher.AppScenes.NEVER, appTexture);
+                    if (useBlizzy)
+                    {
+                        appButton.VisibleInScenes = ApplicationLauncher.AppScenes.NEVER;
+                    }
+                    else
+                    {
+                        appButton.VisibleInScenes = ApplicationLauncher.AppScenes.FLIGHT;
+                    }
+                }
+            else
+            {
+                UDprint("ApplicationLauncher.Ready is false");
+            }
+            if (blizzyButton != null)
+            {
+                blizzyButton.Visible = useBlizzy;
+            }
+        }
 
 		public void Start()
 		{
