@@ -43,9 +43,11 @@ namespace Undockinator
 		private bool showRename = false;
 		private UndockablePort renamePort;
 		private string renameName = null;
+        FlightCamera flightCamera;
+        float pivotTranslateSharpness = 0;
 
-		// ship survey
-		private List<UndockablePort> portList = new List<UndockablePort>();
+        // ship survey
+        private List<UndockablePort> portList = new List<UndockablePort>();
 		Vessel currentVessel;
 
 		class UndockablePort
@@ -176,7 +178,8 @@ namespace Undockinator
 #if DEBUG
 			UDprint("Scanning vessel for undockable parts");
 #endif
-			currentVessel = FlightGlobals.ActiveVessel;
+            resetHighLight();
+            currentVessel = FlightGlobals.ActiveVessel;
 			portList.Clear();
 			maxShipNameWidth = -1f;
 			maxPartNameWidth = -1f;
@@ -323,7 +326,6 @@ namespace Undockinator
 
 		public void OnGUI()
 		{
-
 			if (visible)
 			{
 				if (maxShipNameWidth == -1)
@@ -332,23 +334,29 @@ namespace Undockinator
 				}
 				windowRect = GUILayout.Window(windowID, clampToScreen(windowRect), OnWindow, "The Undockinator " + versionString, GUILayout.MinWidth(300));
 			}
-
-			if (Event.current.type == EventType.Repaint && !windowRect.Contains(Event.current.mousePosition))
-			{
-				if (highlightPart != null && highlightPart.HighlightActive)
-				{
-					highlightPart.SetHighlightDefault();
-					highlightPart = null;
-				}
-                if (highlightPartnerPart != null && highlightPartnerPart.HighlightActive)
-                {
-                    highlightPartnerPart.SetHighlightDefault();
-                    highlightPartnerPart = null;
-                }
-            }
 		}
 
-		public void OnWindow(int windowID)
+        public void resetHighLight()
+        {
+            if (highlightPart != null && highlightPart.HighlightActive)
+            {
+                highlightPart.SetHighlightDefault();
+                highlightPart = null;
+            }
+            if (highlightPartnerPart != null && highlightPartnerPart.HighlightActive)
+            {
+                highlightPartnerPart.SetHighlightDefault();
+                highlightPartnerPart = null;
+            }
+        }
+
+        public void resetCamera()
+        {
+            flightCamera.pivotTranslateSharpness = pivotTranslateSharpness;
+            flightCamera.transform.parent.position = FlightGlobals.ActiveVessel.GetWorldPos3D();
+        }
+
+        public void OnWindow(int windowID)
 		{
 			//GUILayout.BeginHorizontal();
 			//GUILayout.Label(maxPartNameWidth.ToString() + "/"+maxShipNameWidth.ToString());
@@ -426,6 +434,8 @@ namespace Undockinator
 					}
 					if (GUILayout.Button(portList[i].shipName, GUILayout.Width(maxShipNameWidth)))
 					{
+                        resetCamera();
+                        resetHighLight();
                         portList[i].undock();
 						visible = false;
 					}
@@ -442,6 +452,10 @@ namespace Undockinator
                             highlightPartnerPart.SetHighlightDefault();
                         }
                         highlightPart = portList[i].part;
+
+                        flightCamera.pivotTranslateSharpness = 0;
+                        flightCamera.transform.parent.position = portList[i].part.transform.position;
+
                         highlightPartnerPart = portList[i].partner;
 
                         if (!highlightPart.HighlightActive)
@@ -477,10 +491,15 @@ namespace Undockinator
 
 		public void buttonPressed()
 		{
-			if (!visible)
-			{
-				scanVessel();
-			}
+            if (visible)
+            {
+                resetCamera();
+                resetHighLight();
+            }
+            else
+            {
+                scanVessel();
+            }
 			visible = !visible;
 		}
 
@@ -538,7 +557,10 @@ namespace Undockinator
 			nonbreakingLabelStyle = new GUIStyle();
 			nonbreakingLabelStyle.wordWrap = false;
 			nonbreakingLabelStyle.normal.textColor = Color.white;
-		}
+
+            flightCamera = FlightCamera.fetch;
+            pivotTranslateSharpness = flightCamera.pivotTranslateSharpness;
+        }
 
 		public static void UDprint(string taco)
 		{
